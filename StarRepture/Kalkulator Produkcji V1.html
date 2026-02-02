@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kalkulator produkcji</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <main class="mx-auto max-w-4xl p-4 sm:p-8">
+    <!-- Header -->
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Kalkulator produkcji</h1>
+        <p class="mt-1 text-slate-300">
+          Wpisz parametry cyklu i cel. Dostaniesz: szt./min, ile maszyn oraz wymagany input.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button id="copyBtn" type="button"
+          class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 active:scale-[0.99]">
+          Kopiuj podsumowanie
+        </button>
+        <button id="resetBtn" type="button"
+          class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 active:scale-[0.99]">
+          Reset
+        </button>
+      </div>
+    </header>
+
+    <!-- Form -->
+    <section class="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
+      <form id="calcForm" class="grid gap-5">
+        <!-- Primary inputs -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label class="block text-sm text-slate-300" for="outPerCycle">Wyjście na cykl (szt.)</label>
+            <input id="outPerCycle" type="text" inputmode="decimal" value="1"
+              class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 p-3 text-base outline-none focus:ring-2 focus:ring-white/20"
+              placeholder="np. 3" />
+            <p id="errOut" class="mt-1 hidden text-xs text-rose-300"></p>
+          </div>
+
+          <div>
+            <label class="block text-sm text-slate-300" for="cycleSec">Czas cyklu (sekundy)</label>
+            <input id="cycleSec" type="text" inputmode="decimal" value="2"
+              class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 p-3 text-base outline-none focus:ring-2 focus:ring-white/20"
+              placeholder="np. 3" />
+            <p id="errCycle" class="mt-1 hidden text-xs text-rose-300"></p>
+          </div>
+        </div>
+
+        <!-- Input mode + target -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="rounded-2xl border border-white/10 bg-slate-900/30 p-4">
+            <div class="text-sm font-semibold text-slate-200">Zużycie inputu</div>
+
+            <div class="mt-3 flex flex-col gap-2">
+              <label class="flex items-center gap-2 text-sm text-slate-300">
+                <input id="modePerOut" name="inputMode" type="radio" class="h-4 w-4" checked />
+                Input na <span class="font-semibold">1 output</span>
+              </label>
+
+              <label class="flex items-center gap-2 text-sm text-slate-300">
+                <input id="modePerCycle" name="inputMode" type="radio" class="h-4 w-4" />
+                Input na <span class="font-semibold">cykl</span>
+              </label>
+            </div>
+
+            <label class="mt-4 block text-sm text-slate-300" id="inLabel" for="inValue">Input na 1 output (szt.)</label>
+            <input id="inValue" type="text" inputmode="decimal" value="1"
+              class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 p-3 text-base outline-none focus:ring-2 focus:ring-white/20"
+              placeholder="np. 2" />
+            <p id="errIn" class="mt-1 hidden text-xs text-rose-300"></p>
+            <p id="inHint" class="mt-1 text-xs text-slate-400">Np. “wchodzą 2 produkty” → wpisz 2</p>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-slate-900/30 p-4">
+            <div class="text-sm font-semibold text-slate-200">Cel produkcji</div>
+
+            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-sm text-slate-300" for="targetOut">Ile chcesz robić</label>
+                <input id="targetOut" type="text" inputmode="decimal" value="120"
+                  class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 p-3 text-base outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="np. 120" />
+                <p id="errTarget" class="mt-1 hidden text-xs text-rose-300"></p>
+              </div>
+
+              <div>
+                <label class="block text-sm text-slate-300" for="targetUnit">Jednostka</label>
+                <select id="targetUnit"
+                  class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 p-3 text-base outline-none focus:ring-2 focus:ring-white/20">
+                  <option value="min" selected>szt./min</option>
+                  <option value="sec">szt./s</option>
+                  <option value="hour">szt./h</option>
+                </select>
+              </div>
+            </div>
+
+            <label class="mt-4 flex items-center gap-2 text-sm text-slate-300">
+              <input id="roundUp" type="checkbox" checked class="h-4 w-4" />
+              Zaokrąglij liczbę maszyn w górę
+            </label>
+
+            <p class="mt-2 text-xs text-slate-400">
+              Najczęściej w grach/liniach i tak buduje się pełne maszyny — dlatego to jest domyślnie włączone.
+            </p>
+          </div>
+        </div>
+
+        <!-- Advanced (collapsed) -->
+        <details class="rounded-2xl border border-white/10 bg-slate-900/20 p-4">
+          <summary class="cursor-pointer select-none text-sm font-semibold text-slate-200">
+            Zaawansowane
+            <span class="ml-2 text-xs font-normal text-slate-400">(opcjonalnie)</span>
+          </summary>
+
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+              <label class="flex items-center gap-2 text-sm text-slate-300">
+                <input id="lockMachines" type="checkbox" class="h-4 w-4" />
+                Wpisuję liczbę maszyn ręcznie
+              </label>
+
+              <label class="mt-3 block text-sm text-slate-300" for="machinesManual">Maszyny</label>
+              <input id="machinesManual" type="text" inputmode="numeric" value="1" disabled
+                class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/30 p-3 text-base text-slate-400 outline-none focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed" />
+              <p class="mt-1 text-xs text-slate-400">
+                Przydatne, gdy masz już np. 6 maszyn i chcesz policzyć realny output + input.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+              <button id="shareBtn" type="button"
+                class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10 active:scale-[0.99]">
+                Kopiuj link z ustawieniami
+              </button>
+              <p class="mt-2 text-xs text-slate-400">
+                Link zawiera parametry w adresie (możesz wkleić komuś na Discordzie).
+              </p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Results -->
+        <div class="grid gap-3 rounded-2xl border border-white/10 bg-slate-900/40 p-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">1 maszyna</div>
+              <div class="mt-2 text-sm text-slate-300">Produkcja</div>
+              <div class="text-xl font-semibold"><span id="outMin">–</span> <span class="text-base font-normal text-slate-300">szt./min</span></div>
+              <div class="mt-1 text-sm text-slate-400">
+                <span id="outSec">–</span> /s • <span id="outHour">–</span> /h
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">do celu</div>
+              <div class="mt-2 text-sm text-slate-300">Maszyny</div>
+              <div class="text-xl font-semibold"><span id="machines">–</span></div>
+              <div class="mt-1 text-sm text-slate-400">dokładnie: <span id="machinesExact">–</span></div>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">do celu</div>
+              <div class="mt-2 text-sm text-slate-300">Wymagany input</div>
+              <div class="text-xl font-semibold"><span id="inMinTotal">–</span> <span class="text-base font-normal text-slate-300">/min</span></div>
+              <div class="mt-1 text-sm text-slate-400">
+                <span id="inSecTotal">–</span> /s • <span id="inHourTotal">–</span> /h
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">po zaokrągleniu maszyn</div>
+              <div class="mt-2 text-sm text-slate-300">Realny output</div>
+              <div class="text-xl font-semibold"><span id="outMinAch">–</span> <span class="text-base font-normal text-slate-300">szt./min</span></div>
+              <p class="mt-2 text-xs text-slate-400">
+                Jeśli ceil da nadmiar mocy, tutaj zobaczysz faktyczny output.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+              <div class="text-xs uppercase tracking-wide text-slate-400">na 100% obciążenia</div>
+              <div class="mt-2 text-sm text-slate-300">Input do zasilenia wszystkich maszyn</div>
+              <div class="text-xl font-semibold"><span id="inMinFull">–</span> <span class="text-base font-normal text-slate-300">/min</span></div>
+              <p class="mt-2 text-xs text-slate-400">
+                Przydatne, gdy chcesz policzyć taśmę pod pełne obciążenie.
+              </p>
+            </div>
+          </div>
+
+          <div id="status" class="text-xs text-slate-300"></div>
+        </div>
+      </form>
+    </section>
+  </main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- DOM (getElementById) ----------
+  const el = {
+    form: document.getElementById("calcForm"),
+
+    outPerCycle: document.getElementById("outPerCycle"),
+    cycleSec: document.getElementById("cycleSec"),
+
+    modePerOut: document.getElementById("modePerOut"),
+    modePerCycle: document.getElementById("modePerCycle"),
+    inLabel: document.getElementById("inLabel"),
+    inValue: document.getElementById("inValue"),
+    inHint: document.getElementById("inHint"),
+
+    targetOut: document.getElementById("targetOut"),
+    targetUnit: document.getElementById("targetUnit"),
+    roundUp: document.getElementById("roundUp"),
+
+    lockMachines: document.getElementById("lockMachines"),
+    machinesManual: document.getElementById("machinesManual"),
+
+    outMin: document.getElementById("outMin"),
+    outSec: document.getElementById("outSec"),
+    outHour: document.getElementById("outHour"),
+
+    machines: document.getElementById("machines"),
+    machinesExact: document.getElementById("machinesExact"),
+
+    inMinTotal: document.getElementById("inMinTotal"),
+    inSecTotal: document.getElementById("inSecTotal"),
+    inHourTotal: document.getElementById("inHourTotal"),
+
+    outMinAch: document.getElementById("outMinAch"),
+    inMinFull: document.getElementById("inMinFull"),
+
+    errOut: document.getElementById("errOut"),
+    errCycle: document.getElementById("errCycle"),
+    errIn: document.getElementById("errIn"),
+    errTarget: document.getElementById("errTarget"),
+
+    status: document.getElementById("status"),
+
+    copyBtn: document.getElementById("copyBtn"),
+    shareBtn: document.getElementById("shareBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+  };
+
+  // ---------- Formatting ----------
+  const nf = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 4, minimumFractionDigits: 0 });
+  const fmt = (x) => Number.isFinite(x) ? nf.format(x) : "–";
+
+  function parseNumSmart(v) {
+    // wspiera: 1,5 / 1.5 / " 1 000,25 "
+    const s = String(v ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+    if (s === "") return NaN;
+    return Number(s);
+  }
+
+  function setError(node, msg) {
+    if (!msg) {
+      node.textContent = "";
+      node.classList.add("hidden");
+    } else {
+      node.textContent = msg;
+      node.classList.remove("hidden");
+    }
+  }
+
+  function setAllDash() {
+    [
+      el.outMin, el.outSec, el.outHour,
+      el.machines, el.machinesExact,
+      el.inMinTotal, el.inSecTotal, el.inHourTotal,
+      el.outMinAch, el.inMinFull
+    ].forEach(n => n.textContent = "–");
+  }
+
+  function unitToPerMin(val, unit) {
+    if (!Number.isFinite(val)) return NaN;
+    if (unit === "min") return val;
+    if (unit === "sec") return val * 60;
+    if (unit === "hour") return val / 60;
+    return val;
+  }
+
+  function syncInputModeUI() {
+    const perCycle = el.modePerCycle.checked;
+    el.inLabel.textContent = perCycle ? "Input na cykl (szt.)" : "Input na 1 output (szt.)";
+    el.inHint.textContent = perCycle
+      ? "Np. “na cykl wchodzą 2 sztuki” → wpisz 2"
+      : "Np. “wchodzą 2 produkty na 1 sztukę wyjścia” → wpisz 2";
+  }
+
+  function syncManualMachinesUI() {
+    const locked = el.lockMachines.checked;
+    el.machinesManual.disabled = !locked;
+    el.machinesManual.classList.toggle("text-slate-400", !locked);
+  }
+
+  // ---------- State ----------
+  const LS_KEY = "prodCalc.simple.v1";
+
+  function getState() {
+    return {
+      outPerCycle: parseNumSmart(el.outPerCycle.value),
+      cycleSec: parseNumSmart(el.cycleSec.value),
+      inputMode: el.modePerCycle.checked ? "perCycle" : "perOut",
+      inValue: parseNumSmart(el.inValue.value),
+      targetOut: parseNumSmart(el.targetOut.value),
+      targetUnit: el.targetUnit.value,
+      roundUp: el.roundUp.checked,
+      lockMachines: el.lockMachines.checked,
+      machinesManual: parseNumSmart(el.machinesManual.value),
+    };
+  }
+
+  function saveState() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(getState())); } catch {}
+  }
+
+  function loadState() {
+    // URL ma priorytet (share)
+    const url = new URL(location.href);
+    const p = url.searchParams;
+    if ([...p.keys()].length) {
+      const s = {
+        outPerCycle: parseNumSmart(p.get("o")),
+        cycleSec: parseNumSmart(p.get("t")),
+        inputMode: (p.get("m") === "perCycle") ? "perCycle" : "perOut",
+        inValue: parseNumSmart(p.get("i")),
+        targetOut: parseNumSmart(p.get("g")),
+        targetUnit: p.get("u") || "min",
+        roundUp: p.get("r") === "1",
+        lockMachines: p.get("l") === "1",
+        machinesManual: parseNumSmart(p.get("k")),
+      };
+
+      if (Number.isFinite(s.outPerCycle)) el.outPerCycle.value = String(s.outPerCycle);
+      if (Number.isFinite(s.cycleSec)) el.cycleSec.value = String(s.cycleSec);
+      if (s.inputMode === "perCycle") { el.modePerCycle.checked = true; el.modePerOut.checked = false; }
+      else { el.modePerOut.checked = true; el.modePerCycle.checked = false; }
+      if (Number.isFinite(s.inValue)) el.inValue.value = String(s.inValue);
+      if (Number.isFinite(s.targetOut)) el.targetOut.value = String(s.targetOut);
+      el.targetUnit.value = s.targetUnit;
+      el.roundUp.checked = s.roundUp;
+      el.lockMachines.checked = s.lockMachines;
+      if (Number.isFinite(s.machinesManual)) el.machinesManual.value = String(s.machinesManual);
+
+      syncInputModeUI();
+      syncManualMachinesUI();
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+
+      if (Number.isFinite(s.outPerCycle)) el.outPerCycle.value = String(s.outPerCycle);
+      if (Number.isFinite(s.cycleSec)) el.cycleSec.value = String(s.cycleSec);
+      if (s.inputMode === "perCycle") { el.modePerCycle.checked = true; el.modePerOut.checked = false; }
+      else { el.modePerOut.checked = true; el.modePerCycle.checked = false; }
+      if (Number.isFinite(s.inValue)) el.inValue.value = String(s.inValue);
+      if (Number.isFinite(s.targetOut)) el.targetOut.value = String(s.targetOut);
+      if (typeof s.targetUnit === "string") el.targetUnit.value = s.targetUnit;
+      el.roundUp.checked = !!s.roundUp;
+      el.lockMachines.checked = !!s.lockMachines;
+      if (Number.isFinite(s.machinesManual)) el.machinesManual.value = String(s.machinesManual);
+
+      syncInputModeUI();
+      syncManualMachinesUI();
+    } catch {}
+  }
+
+  // ---------- Calc ----------
+  function calc() {
+    syncInputModeUI();
+    syncManualMachinesUI();
+
+    const s = getState();
+
+    // clear errors
+    setError(el.errOut, "");
+    setError(el.errCycle, "");
+    setError(el.errIn, "");
+    setError(el.errTarget, "");
+    el.status.textContent = "";
+
+    // validate
+    let ok = true;
+    if (!(s.outPerCycle > 0)) { setError(el.errOut, "Musi być > 0"); ok = false; }
+    if (!(s.cycleSec > 0)) { setError(el.errCycle, "Musi być > 0"); ok = false; }
+    if (!(s.inValue >= 0)) { setError(el.errIn, "Musi być ≥ 0"); ok = false; }
+    if (!(s.targetOut >= 0)) { setError(el.errTarget, "Musi być ≥ 0"); ok = false; }
+
+    if (!ok) {
+      setAllDash();
+      saveState();
+      return;
+    }
+
+    const outPerSec = s.outPerCycle / s.cycleSec;
+    const outPerMin = outPerSec * 60;
+    const outPerHour = outPerMin * 60;
+
+    const targetPerMin = unitToPerMin(s.targetOut, s.targetUnit);
+
+    // in per output
+    const inPerOut = (s.inputMode === "perCycle")
+      ? (s.inValue / s.outPerCycle)
+      : s.inValue;
+
+    // input needed for target
+    const inMinTarget = targetPerMin * inPerOut;
+    const inSecTarget = inMinTarget / 60;
+    const inHourTarget = inMinTarget * 60;
+
+    // machines
+    const machinesExact = (outPerMin === 0) ? Infinity : (targetPerMin / outPerMin);
+    const eps = 1e-12;
+    const machinesAuto = s.roundUp ? Math.ceil(machinesExact - eps) : machinesExact;
+
+    let machinesUsed = machinesAuto;
+    if (s.lockMachines && Number.isFinite(s.machinesManual) && s.machinesManual > 0) {
+      machinesUsed = Math.floor(s.machinesManual);
+    }
+
+    // after rounding/using machines
+    const outMinAch = machinesUsed * outPerMin;
+
+    // input to feed all machines at 100% load
+    const inPerSec1 = outPerSec * inPerOut;
+    const inPerMin1 = inPerSec1 * 60;
+    const inMinFull = machinesUsed * inPerMin1;
+
+    // render
+    el.outSec.textContent = fmt(outPerSec);
+    el.outMin.textContent = fmt(outPerMin);
+    el.outHour.textContent = fmt(outPerHour);
+
+    el.machinesExact.textContent = fmt(machinesExact);
+    el.machines.textContent = fmt(machinesUsed);
+
+    el.inSecTotal.textContent = fmt(inSecTarget);
+    el.inMinTotal.textContent = fmt(inMinTarget);
+    el.inHourTotal.textContent = fmt(inHourTarget);
+
+    el.outMinAch.textContent = fmt(outMinAch);
+    el.inMinFull.textContent = fmt(inMinFull);
+
+    const modeTxt = (s.inputMode === "perCycle") ? "input/cykl" : "input/output";
+    const unitTxt = (s.targetUnit === "sec") ? "szt./s" : (s.targetUnit === "hour") ? "szt./h" : "szt./min";
+    el.status.textContent =
+      `Tryb: ${modeTxt}. Cel: ${fmt(s.targetOut)} ${unitTxt} ⇒ ${fmt(targetPerMin)} szt./min.`;
+
+    saveState();
+  }
+
+  // ---------- Scheduling (smooth typing) ----------
+  let raf = 0;
+  function scheduleCalc() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      calc();
+    });
+  }
+
+  // ---------- Copy / Share / Reset ----------
+  function buildSummary() {
+    const s = getState();
+    const outPerSec = s.outPerCycle / s.cycleSec;
+    const outPerMin = outPerSec * 60;
+    const targetPerMin = unitToPerMin(s.targetOut, s.targetUnit);
+    const inPerOut = (s.inputMode === "perCycle") ? (s.inValue / s.outPerCycle) : s.inValue;
+    const inMinTarget = targetPerMin * inPerOut;
+    const machinesExact = targetPerMin / outPerMin;
+    const machinesAuto = s.roundUp ? Math.ceil(machinesExact - 1e-12) : machinesExact;
+    const machinesUsed = (s.lockMachines && Number.isFinite(s.machinesManual) && s.machinesManual > 0)
+      ? Math.floor(s.machinesManual)
+      : machinesAuto;
+
+    return [
+      `Parametry: ${fmt(s.outPerCycle)} szt./${fmt(s.cycleSec)}s ⇒ ${fmt(outPerMin)} szt./min (1 maszyna)`,
+      `Input: ${fmt(s.inValue)} (${s.inputMode === "perCycle" ? "na cykl" : "na 1 output"}) ⇒ input/output = ${fmt(inPerOut)}`,
+      `Cel: ${fmt(s.targetOut)} ${s.targetUnit === "sec" ? "szt./s" : s.targetUnit === "hour" ? "szt./h" : "szt./min"} ⇒ ${fmt(targetPerMin)} szt./min`,
+      `Maszyny: ${fmt(machinesUsed)} (dokładnie: ${fmt(machinesExact)})`,
+      `Wymagany input do celu: ${fmt(inMinTarget)} /min`
+    ].join("\n");
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      el.status.textContent = "Skopiowane ✅";
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); el.status.textContent = "Skopiowane ✅"; }
+      catch { el.status.textContent = "Nie udało się skopiować 😅"; }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function buildShareURL() {
+    const s = getState();
+    const url = new URL(location.href);
+    url.searchParams.set("o", String(s.outPerCycle));
+    url.searchParams.set("t", String(s.cycleSec));
+    url.searchParams.set("m", s.inputMode);
+    url.searchParams.set("i", String(s.inValue));
+    url.searchParams.set("g", String(s.targetOut));
+    url.searchParams.set("u", String(s.targetUnit));
+    url.searchParams.set("r", s.roundUp ? "1" : "0");
+    url.searchParams.set("l", s.lockMachines ? "1" : "0");
+    url.searchParams.set("k", String(s.machinesManual));
+    return url.toString();
+  }
+
+  function resetAll() {
+    el.outPerCycle.value = "1";
+    el.cycleSec.value = "2";
+    el.modePerOut.checked = true;
+    el.modePerCycle.checked = false;
+    el.inValue.value = "1";
+    el.targetOut.value = "120";
+    el.targetUnit.value = "min";
+    el.roundUp.checked = true;
+    el.lockMachines.checked = false;
+    el.machinesManual.value = "1";
+    syncInputModeUI();
+    syncManualMachinesUI();
+    try { localStorage.removeItem(LS_KEY); } catch {}
+    scheduleCalc();
+  }
+
+  // ---------- Events (delegation) ----------
+  function isRelevant(id) {
+    return [
+      "outPerCycle","cycleSec",
+      "modePerOut","modePerCycle",
+      "inValue",
+      "targetOut","targetUnit",
+      "roundUp",
+      "lockMachines","machinesManual"
+    ].includes(id);
+  }
+
+  el.form.addEventListener("input", (e) => {
+    if (e.target && isRelevant(e.target.id)) scheduleCalc();
+  });
+  el.form.addEventListener("change", (e) => {
+    if (e.target && isRelevant(e.target.id)) scheduleCalc();
+  });
+
+  el.copyBtn.addEventListener("click", () => copyText(buildSummary()));
+  el.shareBtn.addEventListener("click", () => copyText(buildShareURL()));
+  el.resetBtn.addEventListener("click", resetAll);
+
+  // init
+  loadState();
+  calc();
+})();
+</script>
+ <main id="top" class="mx-auto max-w-6xl px-4">
+    <footer class="py-10 text-sm text-slate-400">
+      <div class="border-t border-white/10 pt-6 flex items-center justify-between flex-wrap gap-2">
+        <span>© <span id="year"></span> dudiruders</span>
+         <span>GitHub Pages • Tailwind CDN</span>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>
